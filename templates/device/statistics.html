@@ -1,0 +1,242 @@
+{# наследуемся от базового шиблона #}
+{% extends 'base/base.html' %}
+{% load control_extras %}
+
+{% block title %}
+    {{ device.name }} - Статистика
+{% endblock title %}
+
+{% block content %}
+    <h1>{{ device.name }} - отслеживание статистики</h1>
+
+
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/data.js"></script>
+    <script src="https://code.highcharts.com/modules/series-label.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/export-data.js"></script>
+
+    <!-- Additional files for the Highslide popup effect -->
+    <script src="https://www.highcharts.com/media/com_demo/js/highslide-full.min.js"></script>
+    <script src="https://www.highcharts.com/media/com_demo/js/highslide.config.js" charset="utf-8"></script>
+    <link rel="stylesheet" type="text/css" href="https://www.highcharts.com/media/com_demo/css/highslide.css" />
+
+    <div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+{#    <div id="container_2" style="min-width: 310px; height: 400px; margin: 0 auto" data-title="{{ response }}" data-jsondata="{{ json_data }}"></div>#}
+
+    {{ response }} <br>
+    {{ json_data.data }} <br>
+
+    <div>
+        <label for="chat-log"></label><textarea id="chat-log" cols="100" rows="20"></textarea><br/>
+    </div>
+
+    <script>
+        var chart;
+
+        chart = Highcharts.chart('container', {
+
+            chart: {
+                scrollablePlotArea: {
+                    minWidth: 700
+                }
+            },
+
+{#            data: {{ json_data.data }},#}
+
+            title: {
+                text: "{{ title }}"
+            },
+
+            subtitle: {
+                text: '{{ subtitle }}'
+            },
+
+            xAxis: {
+                tickInterval: 5, //
+                tickWidth: 0,
+                gridLineWidth: 1,
+                title: {
+                    text: '{{ json_data.time.name }}'
+                },
+                labels: {
+                    format: '{{ json_data.time.label_format }}'
+                }
+            },
+
+            yAxis: [
+                {% for key, item in json_data.items %}
+                    {% if item.name != 'Время' %}
+                        {% if forloop.counter0 == 1 %}
+                            { // Ось 'Температура'
+                                labels: {
+                                    format: '{{ item.label_format }}'
+                                },
+                                showFirstLabel: false,
+                                title: {
+                                    text:
+                                        {% if item.suffix == '' %}
+                                            '{{ item.name }}'
+                                        {% else %}
+                                            '{{ item.name|addstr:', '|addstr:item.suffix }}'
+                                        {% endif %}
+                                }
+                            },
+                        {% else %}
+                            {
+                                gridLineWidth: 0,
+                                opposite: true,
+                                labels: {
+                                    format: '{{ item.label_format }}'
+                                },
+                                title: {
+                                    text:
+                                        {% if item.suffix == '' %}
+                                            '{{ item.name }}'
+                                        {% else %}
+                                            '{{ item.name|addstr:', '|addstr:item.suffix }}'
+                                        {% endif %}
+                                },
+{#                                min: 0,#}
+                                {% if forloop.last %}
+                                    showFirstLabel: false
+                                {% endif %}
+                            },
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+
+
+{#                { // Ось 'Температура'#}
+{#                labels: {#}
+{#                    format: '{value}\xB0C'#}
+{#                },#}
+{#                title: {#}
+{#                    text: 'Температура, \xB0C'#}
+{#                },#}
+{#                showFirstLabel: false#}
+{#            }, { // Ось 'Проценты'#}
+{#                linkedTo: 0,#}
+{#                gridLineWidth: 0,#}
+{#                opposite: true,#}
+{#                labels: {#}
+{#                    format: '{value} %'#}
+{#                },#}
+{#                title: {#}
+{#                    text: 'Проценты, %'#}
+{#                },#}
+{#                showFirstLabel: false,#}
+{#                min: 0,#}
+{#                max: 100#}
+{#            }, { // Ось 'Номер контейнера'#}
+{#                linkedTo: 0,#}
+{#                gridLineWidth: 0,#}
+{#                opposite: true,#}
+{#                labels: {#}
+{#                    format: '№ {value}'#}
+{#                },#}
+{#                title: {#}
+{#                    text: 'Номер контейнера'#}
+{#                },#}
+{#                showFirstLabel: false,#}
+{#                min: 0,#}
+{#                allowDecimals: false // для отображения целых чисел#}
+{#            }#}
+            ],
+
+            legend: {
+                align: 'left',
+                verticalAlign: 'top',
+                borderWidth: 0
+            },
+
+            tooltip: {
+                shared: true,
+                crosshairs: true
+            },
+
+{#            plotOptions: {#}
+{#                series: {#}
+{#                    cursor: 'pointer',#}
+{#                    point: {#}
+{#                        events: {#}
+{#                            click: function (e) {#}
+{#                                hs.htmlExpand(null, {#}
+{#                                    pageOrigin: {#}
+{#                                        x: e.pageX || e.clientX,#}
+{#                                        y: e.pageY || e.clientY#}
+{#                                    },#}
+{#                                    headingText: this.series.name,#}
+{#                                    maincontentText: Highcharts.dateFormat('%A, %b %e, %Y', this.x) + ':<br/> ' +#}
+{#                                        this.y + ' sessions',#}
+{#                                    width: 200#}
+{#                                });#}
+{#                            }#}
+{#                        }#}
+{#                    },#}
+{#                    marker: {#}
+{#                        lineWidth: 1#}
+{#                    }#}
+{#                }#}
+{#            },#}
+
+            series: [
+                {% for key, item in json_data.items %}
+                    {% if item.name != 'Время' %}
+                        {% if forloop.counter0 == 1 %}
+                            {
+                                name: "{{ item.name }}",
+                                data: {{ item.data }},
+                                lineWidth: 4,
+                                marker: {
+                                    radius: 4
+                                },
+                                yAxis: {{ forloop.counter0|add:'-1' }},
+                                tooltip: {
+                                    valueSuffix: '{{ item.suffix }}' // °C
+                                }
+                            },
+                        {% else %}
+                            {
+                                name: "{{ item.name }}",
+                                data: {{ item.data }},
+                                yAxis: {{ forloop.counter0|add:'-1' }},
+                                tooltip: {
+                                    valueSuffix: '{{ item.suffix }}'
+                                }
+                            },
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            ]
+        });
+
+        var deviceId = {{ idx }};
+
+        var chatSocket = new WebSocket(
+            'ws://' + window.location.host +
+            '/ws/device/statistics/' + deviceId); // device/statistics/  + '/'
+
+        chatSocket.onmessage = function(e) {
+            var data = JSON.parse(e.data);
+            var message = data['content'];
+            document.querySelector('#chat-log').value += (JSON.stringify(message) + '\n');
+
+            chart.series.forEach(function(item, i, arr) {
+                var point = [message["time"], message[item["name"]]];
+                chart.series[i].addPoint(point, true, false);
+            });
+{#            chart.series.forEach(function(item, i, arr) {#}
+{#                console.log(item["name"] + " : " + item["data"]);#}
+{#                var message = {'Время': 1, 'Температура': 24, 'Мощность': 50, 'Контейнер': 1};#}
+{#                var point = [message["time"], message[item["name"]]];#}
+{#                chart.series[i].addPoint(point, true, false);#}
+{#            });#}
+        };
+
+        chatSocket.onclose = function(e) {
+            console.error('Chat socket closed unexpectedly'); // Чат сокет неожиданно закрыт
+        };
+    </script>
+
+{% endblock content %}

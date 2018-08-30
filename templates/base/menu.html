@@ -1,0 +1,38 @@
+<div class="col-12 col-md-3 col-xl-2 bd-sidebar">
+    <nav id="nav" class="collapse bd-links">
+        {% for key, item in devices.items %}
+{#            {% if forloop.first %}#}
+            {% if key == idx %}
+                <div class="bd-toc-item active">
+                    <a class="bd-toc-link" href="{% url 'settings' key %}">{{ item.name }} - {{ key }}</a>
+                    <ul id="submenu_active" class="nav bd-sidenav">
+                        {% if submenu == 0 %}
+                            <li class="active bd-sidenav-active"><a href="{% url 'settings' key %}">Настройки</a></li>
+                            <li><a href="{% url 'statistics' key %}">Статистика</a></li>
+                            <li><a href="{% url 'control' key %}">Управление</a></li>
+                        {% elif submenu == 1 %}
+                            <li><a href="{% url 'settings' key %}">Настройки</a></li>
+                            <li class="active bd-sidenav-active"><a href="{% url 'statistics' key %}">Статистика</a></li>
+                            <li><a href="{% url 'control' key %}">Управление</a></li>
+                        {% elif submenu == 2 %}
+                            <li><a href="{% url 'settings' key %}">Настройки</a></li>
+                            <li><a href="{% url 'statistics' key %}">Статистика</a></li>
+                            <li class="active bd-sidenav-active"><a href="{% url 'control' key %}">Управление</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+            {% else %}
+                <div class="bd-toc-item">
+                    <a class="bd-toc-link" href="{% url 'settings' key %}">{{ item.name }} - {{ key }}</a>
+                    <ul class="nav bd-sidenav">
+                        <li><a href="{% url 'settings' key %}">Настройки</a></li>
+                        <li><a href="{% url 'statistics' key %}">Статистика</a></li>
+                        <li><a href="{% url 'control' key %}">Управление</a></li>
+                    </ul>
+                </div>
+            {% endif %}
+        {% empty %}
+            вывести сообщение что нет устройств
+        {% endfor %}
+    </nav>
+</div>

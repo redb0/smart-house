@@ -1,0 +1,45 @@
+{# наследуемся от базового шиблона #}
+{% extends 'base/base.html' %}
+
+{% block title %}
+    {{ device.name }} - Управление
+{% endblock title %}
+
+{% block content %}
+    <h1>{{ device.name }} - управление устройством</h1>
+
+    <form action="" method="post">
+        {% csrf_token %}
+        {{ form }}
+        <br>
+
+        <div class="btn-toolbar" role="toolbar" aria-label="Toolbar with button groups">
+            {% for button in buttons %}
+                {% if button.type == 'button-start' %}
+                    <div class="btn-group" role="group" aria-label="{{ forloop.counter0 }}">
+                        <input type="submit" class="btn btn-success" value="{{ button.title }}" name="{{ button.id }}" style="margin-right: 5px;" {% if not button.is_active %} disabled {% endif %}>
+                    </div>
+                {% elif button.type == 'button-pause' %}
+                    <div class="btn-group" role="group" aria-label="{{ forloop.counter0 }}">
+                        <input type="submit" class="btn btn-warning" value="{{ button.title }}" name="{{ button.id }}" style="margin-right: 5px;" {% if not button.is_active %} disabled {% endif %}>
+                    </div>
+                {% elif button.type == 'button-stop' %}
+                    <div class="btn-group" role="group" aria-label="{{ forloop.counter0 }}">
+                        <input type="submit" class="btn btn-danger" value="{{ button.title }}" name="{{ button.id }}" style="margin-right: 5px;" {% if not button.is_active %} disabled {% endif %}>
+                    </div>
+                {% elif button.type == 'button' %}
+                    <div class="btn-group" role="group" aria-label="{{ forloop.counter0 }}">
+                        <input type="submit" class="btn btn-primary" value="{{ button.title }}" name="{{ button.id }}" style="margin-right: 5px;" {% if not button.is_active %} disabled {% endif %}>
+                    </div>
+    {#                {% if not button.is_active %}#}
+    {#                    <a href="#" class="btn btn-primary disabled" role="button" aria-disabled="true" tabindex="-1">{{ button.title }}</a><br>#}
+    {#                {% else %}#}
+    {#                    <a href="#" class="btn btn-primary" role="button">{{ button.title }}</a><br>#}
+    {#                {% endif %}#}
+                {% endif %}
+            {% endfor %}
+        </div>
+    </form>
+    {{ response }}
+
+{% endblock content %}
