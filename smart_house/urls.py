@@ -37,8 +37,8 @@ urlpatterns = [
 
     path('init', views.init_device_http, name='init'),
     path('start', views.start_view, name='start'),
-    # path('post', views.get_device_statistic, name='post')
-
-
-    # path('test/', views.test, name='test'),
+    path('pause', views.pause_view, name='pause'),
+    path('stop', views.stop_view, name='stop'),
+    path('delete', views.delete_view, name='delete'),
+    path('settings_test', views.settings_test_view, name='settings_test')
 ]

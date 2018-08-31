@@ -23,6 +23,15 @@ def init_device(data: dict) -> Device:
     return device
 
 
+# def change_button_activity_status(buttons):
+#     return buttons
+
+
+def delete_device(device_id: int):
+    # TODO: Написать функцию удаления устройства, удалить данные из списка устройств
+    pass
+
+
 def generate_form(device: Device):
     if device.device_type == "AM":
         pass

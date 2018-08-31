@@ -10,6 +10,8 @@ from django.shortcuts import render
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 
+from control.communication import send_get, send_post
+from control.control_settings import RESERVED_BUTTONS
 from control.logic import init_device
 from control.models import devices_list, LaunchHistory
 from .forms import AddDevice, get_control_form
@@ -17,9 +19,6 @@ from .forms import AddDevice, get_control_form
 
 def index_view(request):
     """Главная страница"""
-    # for i in range(len(devices_list.devices)):
-    #     print(i, devices_list.devices[i].name)
-
     return render(request, 'index.html',
                   {'devices': devices_list.get_dict(), 'idx': 0, 'submenu': 0})
 
@@ -43,19 +42,25 @@ def device_settings_view(request, device_id):
             device.save()
             print('Данные к отправке на устройство', device.to_dict())
             # TODO: отправить POST запрос с новыми настройками на устройство дождаться ответа и вывести "Настройки сохранены"
+            response = send_post('127.0.0.1:8000', '/settings_test', json=form.cleaned_data, protocol='http')
 
-
-            url = 'http://' + device.ip_address
-            r = requests.post()
-
+            # response = send_post(device.ip_address, '/settings', json=form.cleaned_data, protocol='http')
+            # Ожидаемый ответ:
+            # {'saved': 0, 'message': 'сообщание ошибки'} - ошибка данные не сохранены,
+            # {'saved': 1, 'message': 'Данные успешно сохранены'} - данные сохранены
+            data_response = response.json()
+            saved = data_response['saved']
+            message = data_response['message']
 
             return render(request, 'device/settings.html', {'devices': devices_list.get_dict(),
                                                             'device': device, 'idx': device_id,
                                                             'submenu': 0,
-                                                            'form': form, 'response': form.cleaned_data})
+                                                            'form': form,
+                                                            'saved': saved, 'message': message,
+                                                            'data': form.cleaned_data, 'response': response})
     else:
         form = device.form_settings()
-        print('Изменение начальных данных', device.to_dict())
+        print('Изменение начальных данных в форме')
         form.update_initial_values(device.to_dict())
     return render(request, 'device/settings.html', {'devices': devices_list.get_dict(),
                                                     'device': device, 'idx': device_id,
@@ -66,10 +71,9 @@ def device_settings_view(request, device_id):
 @csrf_exempt
 def device_statistics_view(request, device_id):
     """Статистика устройства"""
-    print("Индекс устройства в списке: ", device_id)
+    # print("Индекс устройства в списке: ", device_id)
     device = devices_list.devices[device_id]
-    charts = device.return_values
-    print("Графики", charts)
+    # charts = device.return_values
     response_text = ''
     json_data = ''
     title = ''
@@ -136,10 +140,6 @@ def device_statistics_view(request, device_id):
         # запрос от пользователя
 
     # TODO: Убрать 'response': response_text
-    print(response_text)
-    print(title)
-    print(subtitle)
-    print(json_data)
     return render(request, 'device/statistics.html',
                   {'devices': devices_list.get_dict(), 'device': device,
                    'idx': device_id, 'submenu': 1, 'response': response_text,
@@ -166,25 +166,37 @@ def device_control_view(request, device_id):  # , mode=''
             print(form.cleaned_data)
             for btn in buttons:
                 if btn['id'] in request.POST:
-                    url = btn['url']
-                    print(url)
+                    relative_url = btn['url']
+                    print(relative_url)
                     response_text = 'Нажата кнопка "' + btn['title'] + '" '
                     # TODO: послать запрос на устройстко на url
                     print('Отправить запрос на', device.ip_address)
-                    device_url = 'http://' + '127.0.0.1:8000' + url
-                    print(device_url)
-                    r = requests.post(device_url, json=form.cleaned_data)  # json=form.cleaned_data device.ip_address
-                    print(r.status_code)
-                    # print(r.text)
-                    if r.status_code == requests.codes.ok:
+
+                    # response = send_post(device.ip_address, relative_url, json=form.cleaned_data, protocol='http')
+                    response = send_post('127.0.0.1:8000', relative_url, json=form.cleaned_data, protocol='http')
+
+                    print(response.status_code)
+                    if response.status_code == requests.codes.ok:
                         print('Запрос выполнен успешно')
                         response_text += 'Запрос выполнен успешно'
-                        print(r.text)  # Принять с устройства строку, например "Устройство успешно запущено"
-                        # print(r.json())
+                        print(response.text)  # Принять с устройства строку, например "Устройство успешно запущено"
                     else:
                         # TODO: Обработать ошибку с утсройства, считать ее из ответа и вывести на экран
-                        print(r.text)
+                        print(response.text)
                         print('Ошибка')
+                if btn['type'] in RESERVED_BUTTONS:
+                    if btn['id'] in request.POST:
+                        btn['is_active'] = False
+                    else:
+                        btn['is_active'] = True
+
+            if 'delete' in request.POST:
+                print('Инициация удаления устройства')
+                response_text = 'Нажата кнопка "Delete" \n'
+                # response = send_post(device.ip_address, relative_url, json=form.cleaned_data, protocol='http')
+                response = send_get('127.0.0.1:8000', '/delete', protocol='http')
+                print(response.text)
+                response_text += response.text
         else:
             response_text = 'Некорректный ввод'
 
@@ -194,29 +206,20 @@ def device_control_view(request, device_id):  # , mode=''
                                                    'response': response_text})
 
 
-# def page_add_view(request):
-#     if request.method == 'GET':
-#         form = devices_list[0].form_settings
-#     return render(request, 'add_device.html',
-#                   {'devices': devices_list.get_dict(), 'idx': 0, 'submenu': 0, 'form': form})
-
-
 def add_device(request):
     """Добавление устройства"""
     if request.method == 'POST':
         form = AddDevice(request.POST)
         if form.is_valid():
-            # print(form)
-            # print(form.cleaned_data['ip_address'])
             if devices_list.get_device(form.cleaned_data['ip_address']):
                 return render(request, 'add_device.html', {'devices': devices_list.get_dict(), 'idx': 0, 'submenu': 0,
                                                            'form': form, 'connection': 2,
                                                            'response': "Устройство уже добавлено"})
             # TODO: Послать запрос устройству для инициализации
-            r = requests.get('http://' + '127.0.0.1:8000' + '/init')  # form.cleaned_data['ip_address']
-            print(r.status_code)
-            # content_response = r.text
-            print(r.text)
+            # response = send_get(form.cleaned_data['ip_address'], '/init', protocol='http')
+            response = send_get('127.0.0.1:8000', '/init', protocol='http')
+            print(response.status_code)
+            print(response.text)
             # ожидаемый ответ:
             # {
             #   'name': "", 'ip_address': "",
@@ -224,9 +227,9 @@ def add_device(request):
             #   'wifi_login': "", 'wifi_password': "",
             #   'settings': [], 'return_values': []
             # }
-            if r.status_code == requests.codes.ok:
+            if response.status_code == requests.codes.ok:
                 connection = 1
-                device = init_device(r.json())
+                device = init_device(response.json())
                 # print('Настройки: ', device.settings)
 
                 # FIXME: Убрать
@@ -234,7 +237,8 @@ def add_device(request):
             else:
                 connection = 0
             return render(request, 'add_device.html', {'devices': devices_list.get_dict(), 'idx': 0, 'submenu': 0,
-                                                       'form': form, 'connection': connection, 'response': r.text})
+                                                       'form': form, 'connection': connection,
+                                                       'response': response.text})
     else:
         form = AddDevice()
     return render(request, 'add_device.html', {'devices': devices_list.get_dict(), 'idx': 0, 'submenu': 0,
@@ -243,7 +247,9 @@ def add_device(request):
 
 def init_device_http(request):
     """Функция приемник запросов, симуляция устройства"""
-    data = {'name': "Самогонный аппарат - GET",
+    # TODO: переосмыслить return_values, сделать как линии на графике
+    print('Инициализация устройства (обработка на устройстве)')
+    data = {'name': "устройство - GET",
             'type': "AM",
             'ip_address': "127.0.0.1",
             'wap_login': "login",
@@ -301,31 +307,44 @@ def init_device_http(request):
 
 
 @csrf_exempt
+def settings_test_view(request):
+    data = {'saved': 1, 'message': 'Данные успешно сохранены'}
+    if request.method == 'POST':
+        print('Сохранение настроек (обработка на устройстве)')
+        return HttpResponse(json.dumps(data, ensure_ascii=False), content_type='application/json')
+
+
+def delete_view(request):
+    if request.method == 'GET':
+        print('Удаление устройства (обработка на устройстве)')
+        return HttpResponse('Устройство удалено')
+
+
+@csrf_exempt
+def pause_view(request):
+    if request.method == 'POST':
+        print(json.loads(request.body))
+        print('Нажата кнопка Start (обработка на устройстве)')
+        return HttpResponse('На устройстве установлена пауза')
+
+
+@csrf_exempt
+def stop_view(request):
+    if request.method == 'POST':
+        print(json.loads(request.body))
+        print('Нажата кнопка Start (обработка на устройстве)')
+        return HttpResponse('Работа устройства остановлена')
+
+@csrf_exempt
 def start_view(request):
     """Функция приемник запросов, симуляция устройства"""
-    print(request.method)
     if request.method == 'POST':
-        print('Запрос пишел на устройство')
-        print('request.body:', request.body)
-        print('request.POST:', request.POST)
-        print('Данные на утсройстве:', json.loads(request.body))
-    return HttpResponse('')
-
-
-# def get_device_statistic(request):
-#     data = {"time": {"name": "Время", "data": [0]},
-#             "temp": {"name": "Температура", "data": [22]},
-#             "power": {"name": "Мощность", "data": [100]},
-#             "container": {"name": "Контейнер", "data": [1]}}
-#     return requests.post('http://' + '127.0.0.1:8000' + '/post', json=json.dumps(data))
-
-    # for i in range(10):
-    #     data = {'time': i,
-    #             'temp': random.uniform(0, 1),
-    #             'power': 50,
-    #             'container': 0
-    #             }
-    #     yield requests.post('http://' + '127.0.0.1:8000' + '/post', json=json.dumps(data))
+        print('Нажата кнопка Start (обработка на устройстве)')
+        # print('Запрос пишел на устройство')
+        # print('request.body:', request.body)
+        # print('request.POST:', request.POST)
+        # print('Данные на утсройстве:', json.loads(request.body))
+    return HttpResponse('Устройство успешно запущено')
 
 
 def condition_db(request):
@@ -347,12 +366,3 @@ def condition_db(request):
     from django.utils.safestring import mark_safe
 
     return render(request, 'admin/condition.html', {'response': mark_safe(html)})
-
-
-# def test(request):
-#     if request.method == 'GET':
-#         print(request.GET)
-#         print(request.GET.get('a'))
-#         print(request.GET.get('b'))
-#         print(request.GET.getlist('c'))
-#         return HttpResponse('')

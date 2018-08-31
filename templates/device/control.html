@@ -38,8 +38,35 @@
     {#                {% endif %}#}
                 {% endif %}
             {% endfor %}
+            <br>
+            <!-- Кнопка пуска модального окна id=deleteModal -->
+            <div class="btn-group" role="group" aria-label="delete btn">
+                <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#myModal">Удалить устройство</button>
+{#                <input type="button" class="btn btn-danger" value="Удалить устройство" name="delete" style="margin-right: 5px;" data-toggle="modal" data-target="#myModal">#}
+            </div>
+            <!-- Модальное окно -->
+            <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 class="modal-title" id="myModalLabel">Подтверждение удаления устройства</h4>
+                        </div>
+                        <div class="modal-body">
+                            Вы действительно хотите удалить устройство? <br>
+                            История работы устройства будет сохранена на сервере???? (надо или нет) <br>
+                            ДОПОЛНИТЬ!
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-success" data-dismiss="modal">Отмена</button>
+                            <input type="submit" class="btn btn-danger" value="Удалить устройство" name="delete">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </form>
+
     {{ response }}
 
 {% endblock content %}

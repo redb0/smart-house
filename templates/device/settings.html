@@ -2,7 +2,6 @@
 {% extends 'base/base.html' %}
 
 {% load crispy_forms_tags %}
-{#{% crispy form %}#}
 
 {% block title %}
     {{ device.name }} - Настройки
@@ -14,16 +13,17 @@
     <form action="{% url 'settings' idx %}" method="post">
         {% csrf_token %}
         {% crispy form %}
-{#        <br>#}
-{#        {% if connection == 1 %}#}
-{#            <input type="submit" value="Сохранить" class="btn btn-success"/>#}
-{#        {% elif connection == 0 %}#}
-{#            <input type="submit" value="Сохранить" class="btn btn-warning"/>#}
-{#        {% else %}#}
-{#            <input type="submit" value="Сохранить" class="btn btn-primary"/>#}
-{#        {% endif %}#}
+        <br>
+        {% if saved == 1 %}
+            <input type="submit" value="Сохранить" class="btn btn-success"/>
+        {% elif seved == 0 %}
+            <input type="submit" value="Сохранить" class="btn btn-warning"/>
+        {% else %}
+            <input type="submit" value="Сохранить" class="btn btn-primary"/>
+        {% endif %}
     </form>
-    {{ response }}
+    {{ message }} <br>
 
-
+    {{ data }} <br>
+    {{ response }} <br>
 {% endblock content %}

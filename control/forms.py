@@ -2,7 +2,7 @@ from django import forms
 
 from crispy_forms.bootstrap import TabHolder, Tab
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Submit
+from crispy_forms.layout import Layout
 
 
 class AddDevice(forms.Form):
@@ -22,7 +22,6 @@ class DeviceSettings(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
-        # self.tabs = []
 
         if self.__class__.tabs:
             self.helper.form_tag = False
@@ -31,7 +30,7 @@ class DeviceSettings(forms.Form):
                     *self.__class__.tabs
                 )
             )
-            self.helper.layout.append(Submit('submit', 'Сохранить'))
+            # self.helper.layout.append(Submit('submit', 'Сохранить'))
 
     def update_initial_values(self, data: dict):
         for field_name in self.base_fields.keys():
@@ -42,119 +41,15 @@ class DeviceSettings(forms.Form):
                 if (len(constituents) == 2) and constituents[0].isdigit() and (constituents[1] == 'name'):
                     idx = int(constituents[0])
                     self.fields[field_name].initial = data['settings'][idx]['name']
-                if (len(constituents) == 4) and constituents[0].isdigit() and constituents[1].isdigit() and (constituents[2] == 'modes'):
+                if ((len(constituents) == 4) and constituents[0].isdigit() and
+                        constituents[1].isdigit() and (constituents[2] == 'modes')):
                     idx_program = int(constituents[0])
                     idx_mode = int(constituents[1])
                     self.fields[field_name].initial = data['settings'][idx_program]['modes'][idx_mode][constituents[3]]
-                if (len(constituents) == 3) and constituents[0].isdigit() and (constituents[1] == 'pid') and (constituents[2] in ['p', 'i', 'd']):
+                if ((len(constituents) == 3) and constituents[0].isdigit() and
+                        (constituents[1] == 'pid') and (constituents[2] in ['p', 'i', 'd'])):
                     idx_program = int(constituents[0])
                     self.fields[field_name].initial = data['settings'][idx_program]['pid'][constituents[2]]
-
-
-# class AlcoholMachine(DeviceSettings):
-#     # tabs = []
-#
-#     def __init__(self, data, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.helper = FormHelper()
-#         self.tabs = []
-#
-#         self.add_fields(data)
-#
-#         if self.tabs:
-#             self.helper.form_tag = False
-#             self.helper.layout = Layout(
-#                 TabHolder(
-#                     Tab('Main',
-#                         'name',
-#                         'ip_address',
-#                         'wap_login',
-#                         'wap_password',
-#                         'wifi_login',
-#                         'wifi_password',
-#                         ),
-#                     *self.tabs
-#                 )
-#             )
-#             self.helper.layout.append(Submit('submit', 'Сохранить'))
-#
-#     # @staticmethod
-#     def add_fields(self, data: dict):
-#
-#         print()
-#         print(self.fields)
-#         for field_name in self.fields.keys():
-#             self.fields[field_name].initial = data[field_name]
-#             print(field_name, ': ', self.fields[field_name].initial)
-#
-#         settings = data['settings']
-#         # self.fields['name']
-#         for i in range(len(settings)):
-#             field_names = [str(i) + '_name']
-#             self.fields[str(i) + '_name'] = forms.CharField(label='Наименование программы',
-#                                                             initial=settings[i]['name'], max_length=50)
-#             self.__setattr__(str(i) + '_name', forms.CharField(label='Наименование программы',
-#                                                                initial=settings[i]['name'], max_length=50))
-#             # setattr(AlcoholMachine, str(i) + '_name', forms.CharField(label='Наименование программы',
-#             #                                                           initial=settings[i]['name'], max_length=50))
-#             for j in range(len(settings[i]['modes'])):
-#                 field_names.append(str(i) + '_' + str(j) + '_modes_name')
-#                 self.fields[field_names[-1]] = forms.CharField(label='Наименование режима',
-#                                                                initial=settings[i]['modes'][j]['name'],
-#                                                                max_length=50)
-#                 self.__setattr__(field_names[-1], forms.CharField(label='Наименование режима',
-#                                                                   initial=settings[i]['modes'][j]['name'],
-#                                                                   max_length=50))
-#                 # setattr(AlcoholMachine, field_names[-1], forms.CharField(label='Наименование режима',
-#                 #                                                          initial=settings[i]['modes'][j]['name'],
-#                 #                                                          max_length=50))
-#                 field_names.append(str(i) + '_' + str(j) + '_modes_temp')
-#                 self.fields[field_names[-1]] = forms.FloatField(label='Температура',
-#                                                                 initial=settings[i]['modes'][j]['temp'])
-#                 self.__setattr__(field_names[-1], forms.FloatField(label='Температура',
-#                                                                    initial=settings[i]['modes'][j]['temp']))
-#                 # setattr(AlcoholMachine, field_names[-1], forms.FloatField(label='Температура',
-#                 #                                                           initial=settings[i]['modes'][j]['temp']))
-#                 field_names.append(str(i) + '_' + str(j) + '_modes_time')
-#                 self.fields[field_names[-1]] = forms.IntegerField(label='Время',
-#                                                                   initial=settings[i]['modes'][j]['time'])
-#                 self.__setattr__(field_names[-1], forms.IntegerField(label='Время',
-#                                                                      initial=settings[i]['modes'][j]['time']))
-#                 # setattr(AlcoholMachine, field_names[-1], forms.IntegerField(label='Время',
-#                 #                                                             initial=settings[i]['modes'][j]['time']))
-#             for key in settings[i]['pid'].keys():
-#                 name = str(i) + '_pid_' + key
-#                 field_names.append(name)
-#                 if key == 'p':
-#                     label = 'Пропорциональный коэффициент'
-#                 elif key == 'p':
-#                     label = 'Интегральный коэффициент'
-#                 else:
-#                     label = 'Дифференциальный коэффициент'
-#                 self.fields[name] = forms.FloatField(label=label, initial=settings[i]['pid'][key])
-#                 self.__setattr__(name, forms.FloatField(label=label, initial=settings[i]['pid'][key]))
-#                 # setattr(AlcoholMachine, name, forms.FloatField(label=label, initial=settings[i]['pid'][key]))
-#             self.tabs.append(Tab(settings[i]['name'], *field_names, css_id=str(i)))
-#
-#     def update_initial_values(self, data: dict):
-#         for field_name in self.base_fields.keys():
-#
-#
-#             if field_name != 'settings':
-#                 self.base_fields[field_name].initial = data[field_name]
-#             else:
-#                 settings = data['settings']
-#                 for i in range(len(settings)):
-#                     field_name = str(i) + '_name'
-#                     self.base_fields[field_name].initial = settings[i]['name']
-#                     for j in range(len(settings[i]['modes'])):
-#                         for key in settings[i]['modes'][j].keys():
-#                             field_name = str(i) + '_' + str(j) + '_modes_' + key
-#                             self.base_fields[field_name].initial = settings[i]['modes'][j][key]
-#
-#                     for key in settings[i]['pid'].keys():
-#                         field_name = str(i) + '_pid_' + key
-#                         self.base_fields[field_name].initial = settings[i]['pid'][key]
 
 
 def generate_am_form_class(data: dict):
@@ -215,7 +110,6 @@ def get_control_form(data: list):
     #     "id": "program",
     #     "type": "select",
     #     "field": "settings",
-    #     "key": "pr",
     #     "options": []
     # }, {
     #     "title": "Запуск",
@@ -290,15 +184,3 @@ def get_control_form(data: list):
 #     print(fields)
 #
 #     return type('DeviceSettings', (forms.BaseForm,), {'base_fields': fields})
-
-# class DeviceSettingsForm(type):
-#     def __new__(mcs, name, bases, dct):
-#
-#
-#         return super(DeviceSettingsForm, mcs).__new__(mcs, name, bases, dct)
-#
-#     def __call__(cls, *args, **kwargs):
-#         pass
-#
-#     def new_init(cls):
-#         pass
