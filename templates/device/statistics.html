@@ -35,7 +35,6 @@
         var chart;
 
         chart = Highcharts.chart('container', {
-
             chart: {
                 scrollablePlotArea: {
                     minWidth: 700
@@ -68,7 +67,7 @@
                 {% for key, item in json_data.items %}
                     {% if item.name != 'Время' %}
                         {% if forloop.counter0 == 1 %}
-                            { // Ось 'Температура'
+                            {
                                 labels: {
                                     format: '{{ item.label_format }}'
                                 },
@@ -97,7 +96,6 @@
                                             '{{ item.name|addstr:', '|addstr:item.suffix }}'
                                         {% endif %}
                                 },
-{#                                min: 0,#}
                                 {% if forloop.last %}
                                     showFirstLabel: false
                                 {% endif %}
@@ -105,43 +103,6 @@
                         {% endif %}
                     {% endif %}
                 {% endfor %}
-
-
-{#                { // Ось 'Температура'#}
-{#                labels: {#}
-{#                    format: '{value}\xB0C'#}
-{#                },#}
-{#                title: {#}
-{#                    text: 'Температура, \xB0C'#}
-{#                },#}
-{#                showFirstLabel: false#}
-{#            }, { // Ось 'Проценты'#}
-{#                linkedTo: 0,#}
-{#                gridLineWidth: 0,#}
-{#                opposite: true,#}
-{#                labels: {#}
-{#                    format: '{value} %'#}
-{#                },#}
-{#                title: {#}
-{#                    text: 'Проценты, %'#}
-{#                },#}
-{#                showFirstLabel: false,#}
-{#                min: 0,#}
-{#                max: 100#}
-{#            }, { // Ось 'Номер контейнера'#}
-{#                linkedTo: 0,#}
-{#                gridLineWidth: 0,#}
-{#                opposite: true,#}
-{#                labels: {#}
-{#                    format: '№ {value}'#}
-{#                },#}
-{#                title: {#}
-{#                    text: 'Номер контейнера'#}
-{#                },#}
-{#                showFirstLabel: false,#}
-{#                min: 0,#}
-{#                allowDecimals: false // для отображения целых чисел#}
-{#            }#}
             ],
 
             legend: {
@@ -224,6 +185,10 @@
 
             chart.series.forEach(function(item, i, arr) {
                 var point = [message["time"], message[item["name"]]];
+{#                document.querySelector('#chat-log').value += (JSON.stringify(i) + '\n');#}
+{#                document.querySelector('#chat-log').value += (JSON.stringify(message["time"]) + '\n');#}
+{#                document.querySelector('#chat-log').value += (JSON.stringify(item["name"]) + '\n');#}
+{#                document.querySelector('#chat-log').value += (JSON.stringify(message[item["name"]]) + '\n');#}
                 chart.series[i].addPoint(point, true, false);
             });
 {#            chart.series.forEach(function(item, i, arr) {#}

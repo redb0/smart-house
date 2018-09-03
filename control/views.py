@@ -1,19 +1,20 @@
 import json
 
 import requests
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
-from django.http import HttpResponse
-from django.shortcuts import render
-
+from django.http import HttpResponse, HttpResponseServerError, Http404
+from django.shortcuts import render, redirect
 
 # Create your views here.
+from django.urls import reverse
+from django.utils.safestring import mark_safe
 from django.views.decorators.csrf import csrf_exempt
 
 from control.communication import send_get, send_post
+from control.consumers import send_to_group
 from control.control_settings import RESERVED_BUTTONS
 from control.logic import init_device
 from control.models import devices_list, LaunchHistory
+from control.validators import device_id_is_correct
 from .forms import AddDevice, get_control_form
 
 
@@ -30,6 +31,8 @@ def docs_view(request):
 
 def device_settings_view(request, device_id):
     """Настройки устройства"""
+    if not device_id_is_correct(device_id):
+        raise Http404
     device = devices_list.devices[device_id]
     if request.method == 'POST':
         form = device.form_settings(request.POST)
@@ -41,10 +44,10 @@ def device_settings_view(request, device_id):
             device.from_dict(form.cleaned_data)
             device.save()
             print('Данные к отправке на устройство', device.to_dict())
-            # TODO: отправить POST запрос с новыми настройками на устройство дождаться ответа и вывести "Настройки сохранены"
-            response = send_post('127.0.0.1:8000', '/settings_test', json=form.cleaned_data, protocol='http')
 
-            # response = send_post(device.ip_address, '/settings', json=form.cleaned_data, protocol='http')
+            url = '/settings_test'  # FIXME: заменить на '/settings'
+            response = send_post(device.ip_address, url, json=form.cleaned_data, protocol='http')
+
             # Ожидаемый ответ:
             # {'saved': 0, 'message': 'сообщание ошибки'} - ошибка данные не сохранены,
             # {'saved': 1, 'message': 'Данные успешно сохранены'} - данные сохранены
@@ -70,25 +73,43 @@ def device_settings_view(request, device_id):
 
 @csrf_exempt
 def device_statistics_view(request, device_id):
-    """Статистика устройства"""
-    # print("Индекс устройства в списке: ", device_id)
+    """
+    Представление страницы со статистикой устройства.
+    GET запрос:
+        рендеринг страници происходит с использованием 
+        статистики предыдущего запуска (если устройство не запущено), 
+        иначе статистика читается из файла.
+    POST запрос: 
+        означает принятие данных от устройства.
+        При запуске работы устроства (запрос по url 'ip_device/start') 
+        оно должно отправить структуру данных с начальными значениями (Пример statistics/example/start.json).
+        При следующих post-запросах на сервер, содержащих данные статистики, 
+        необходимо отправлять их в сокращенном виде:
+            {'time':7,'Температура':25,'Мощность':60,'Контейнер':0}
+        Данные между клиентом (браузером) и сервером передаются через WebSocket (Channels).
+        Все клиенты для получения данных о статистике добавляются в группу 'statistic'.
+        Контент отправляется в виде json:
+            {
+                'type': 'receive_statistic',
+                'content': data
+            }
+    
+    :param request  : 
+    :param device_id: индекс устройства (int)
+    :return: 
+    """
+    if not device_id_is_correct(device_id):
+        raise Http404
+
     device = devices_list.devices[device_id]
     # charts = device.return_values
     response_text = ''
     json_data = ''
-    title = ''
+    title = 'Статистика текущей работы устройства'
     subtitle = 'Устройство: ' + device.name
     if request.method == 'POST':
-        # TODO: добавить обращение к устройству
-        title = 'Статистика текущей работы устройства'
-        # POST запрос с устройства. обработка запроса с пришедшими данными статистики
         if device.current_launch:
-            # устройство запущено добавляем данные в статистику
-            response_text = 'С устройства пришли данные'
-
             if device.current_launch.file_is_empty():
-                # TODO: Для постонного принятия данных с устройства использовать подход Comet
-                # TODO: Установить длительное соединение и посылать данные через него
                 file_format = json.loads(request.body, encoding="utf-8")
                 print(file_format)
                 device.current_launch.set_format(file_format)  # формат json файла с первой порцией данных
@@ -96,27 +117,17 @@ def device_statistics_view(request, device_id):
                 for key, item in file_format.items():
                     data[key] = item['data'][0]
                 print('Вычленненные данные', data)
-                layer = get_channel_layer()
-                async_to_sync(layer.group_send)('statistic', {
-                    'type': 'receive_statistic',
-                    'content': data
-                })
-                return HttpResponse('')
-                # {"time": {"name": "Время","suffix": " мин","label_format": "{value} мин","data":[0]},"temp": {"name": "Температура","suffix": "\\xB0C","label_format": "{value}\\xB0C","data":[22]},"power": {"name": "Мощность","suffix": "%","label_format": "{value} %","data":[100]},"container": {"name": "Контейнер","suffix": "","label_format": "№ {value}","data":[1]}}
             else:
-                new_statistics = json.loads(request.body)  # данные вида {'time': 1, 'temp': 24, 'power': 50, 'container': 0}
-                device.current_launch.update_statistics(new_statistics)
-
-                layer = get_channel_layer()
-                async_to_sync(layer.group_send)('statistic', {
-                    'type': 'receive_statistic',
-                    'content': new_statistics
-                })
-                return HttpResponse('')  # content='', content_type=None, status=200, reason=None
+                data = json.loads(request.body)  # данные вида {'time': 1, 'temp': 24, 'power': 50, 'container': 0}
+                device.current_launch.update_statistics(data)
+                send_to_group(data, name='statistic')
+            send_to_group(data, name='statistic')
+            return HttpResponse('')  # content='', content_type=None, status=200, reason=None
         else:
             # неизвестная фигня
             print('Что-то сверхъестественное')
             response_text = 'Что-то сверхъестественное'
+            return HttpResponseServerError(response_text)
     else:
         if device.current_launch:
             print('Загружаем данные из текущего файла')
@@ -125,19 +136,23 @@ def device_statistics_view(request, device_id):
         else:
             last_launch = LaunchHistory.get_last_launch(device)
             if last_launch:
-                print('--->', last_launch)
                 response_text = str(last_launch.statistics)
                 title = 'Статистика предыдущего процесса работы устройства'
                 print('Путь', last_launch.statistics)
-                with open(last_launch.statistics, 'r', encoding='utf-8') as f:
-                    json_data = json.load(f)
-                print('Данные для графика', json_data)
+                try:
+                    with open(last_launch.statistics, 'r', encoding='utf-8') as f:
+                        json_data = json.load(f)
+                    print('Данные для графика', json_data)
+                except json.JSONDecodeError or TypeError:
+                    response_text = 'Ошибка обработки файла статистики: json.JSONDecodeError or TypeError'
+                    print('Ошибка обработки файла статистики: json.JSONDecodeError or TypeError')
+                    # return HttpResponseServerError('Ошибка открытия файла статистики')
+                except FileNotFoundError:
+                    response_text = 'Ошибка файл не найден ' + str(last_launch.statistics)
+                    print(response_text)
             else:
                 response_text = 'Статистики еще нет'
                 print('Статистики еще нет')
-        # posts = Post.objects.filter(published_date__lte=timezone.now()).order_by('-published_date')
-        # запрос GET, рендеринг последней активной статистики
-        # запрос от пользователя
 
     # TODO: Убрать 'response': response_text
     return render(request, 'device/statistics.html',
@@ -147,10 +162,11 @@ def device_statistics_view(request, device_id):
 
 
 # @csrf_exempt
-def device_control_view(request, device_id):  # , mode=''
+def device_control_view(request, device_id):
     """Управление устройством"""
-    # Какие действия будут выполняться на этой странице, возможно хватит настроек
-    print("Индекс устройства в списке: ", device_id)
+    if not device_id_is_correct(device_id):
+        raise Http404
+
     device = devices_list.devices[device_id]
     launch_parameters = device.control_protocol['params']
     ControlForm, buttons = get_control_form(launch_parameters)
@@ -166,20 +182,30 @@ def device_control_view(request, device_id):  # , mode=''
             print(form.cleaned_data)
             for btn in buttons:
                 if btn['id'] in request.POST:
+                    # TODO: возможно сделать функцию обработки нажатия отдельно, для переопределения
                     relative_url = btn['url']
-                    print(relative_url)
                     response_text = 'Нажата кнопка "' + btn['title'] + '" '
-                    # TODO: послать запрос на устройстко на url
-                    print('Отправить запрос на', device.ip_address)
+                    print('Отправить запрос на', device.ip_address, relative_url)
 
-                    # response = send_post(device.ip_address, relative_url, json=form.cleaned_data, protocol='http')
-                    response = send_post('127.0.0.1:8000', relative_url, json=form.cleaned_data, protocol='http')
+                    response = send_post(device.ip_address, relative_url, json=form.cleaned_data, protocol='http')
 
                     print(response.status_code)
                     if response.status_code == requests.codes.ok:
                         print('Запрос выполнен успешно')
                         response_text += 'Запрос выполнен успешно'
                         print(response.text)  # Принять с устройства строку, например "Устройство успешно запущено"
+                        if btn['type'] == 'button-start':
+                            # Сразу после запуска устройство должно отправить данные типа:
+                            # {"time": {"name": "Время","suffix": " мин","label_format": "{value} мин","data":[0]},"temp": {"name": "Температура","suffix": "\\xB0C","label_format": "{value}\\xB0C","data":[22]},"power": {"name": "Мощность","suffix": "%","label_format": "{value} %","data":[100]},"container": {"name": "Контейнер","suffix": "","label_format": "№ {value}","data":[1]}}
+                            # В дальнейшем данные должны посылаться вида:
+                            # {'time':7,'Температура':25,'Мощность':60,'Контейнер':0}
+                            # FIXME: Заменить на нормальный вид данных: {'time': 1, 'temp': 24, 'power': 50, 'container': 0}
+                            # для этого пригодится return_values в Device
+                            device.start(start_settings=form.cleaned_data)
+                            print('Запуск устройства на сервере')
+                        elif btn['type'] == 'button-stop':
+                            device.stop()
+                            print('Остановка устройства на сервере')
                     else:
                         # TODO: Обработать ошибку с утсройства, считать ее из ответа и вывести на экран
                         print(response.text)
@@ -193,8 +219,16 @@ def device_control_view(request, device_id):  # , mode=''
             if 'delete' in request.POST:
                 print('Инициация удаления устройства')
                 response_text = 'Нажата кнопка "Delete" \n'
-                # response = send_post(device.ip_address, relative_url, json=form.cleaned_data, protocol='http')
-                response = send_get('127.0.0.1:8000', '/delete', protocol='http')
+                response = send_get(device.ip_address, '/delete', protocol='http')
+                # response = send_get('127.0.0.1:8000', '/delete', protocol='http')
+                if response.status_code == requests.codes.ok:
+                    print('Удаление устройства из списка, перенаправление на "add_device.html"')
+                    print('Длина списка устройств до удаления', len(devices_list.devices))
+                    devices_list.devices.pop(device_id)
+                    print('Длина списка устройств', len(devices_list.devices))
+                    return redirect(reverse('add_device'))  # перенаправление на страницу добавления устройства
+                else:
+                    response_text += 'Удаление не удалось \n'
                 print(response.text)
                 response_text += response.text
         else:
@@ -203,7 +237,7 @@ def device_control_view(request, device_id):  # , mode=''
     return render(request, 'device/control.html', {'devices': devices_list.get_dict(), 'device': device,
                                                    'idx': device_id, 'submenu': 2,
                                                    'form': form, 'buttons': buttons,
-                                                   'response': response_text})
+                                                   'response': mark_safe(response_text)})
 
 
 def add_device(request):
@@ -230,10 +264,6 @@ def add_device(request):
             if response.status_code == requests.codes.ok:
                 connection = 1
                 device = init_device(response.json())
-                # print('Настройки: ', device.settings)
-
-                # FIXME: Убрать
-                # device.starting(0)
             else:
                 connection = 0
             return render(request, 'add_device.html', {'devices': devices_list.get_dict(), 'idx': 0, 'submenu': 0,
@@ -251,7 +281,7 @@ def init_device_http(request):
     print('Инициализация устройства (обработка на устройстве)')
     data = {'name': "устройство - GET",
             'type': "AM",
-            'ip_address': "127.0.0.1",
+            'ip_address': "127.0.0.1:8000",
             'wap_login': "login",
             'wap_password': "password",
             'wifi_login': "login",
@@ -335,6 +365,7 @@ def stop_view(request):
         print('Нажата кнопка Start (обработка на устройстве)')
         return HttpResponse('Работа устройства остановлена')
 
+
 @csrf_exempt
 def start_view(request):
     """Функция приемник запросов, симуляция устройства"""
@@ -350,12 +381,7 @@ def start_view(request):
 def condition_db(request):
     """Для админа"""
     # 127.0.0.1:8000/admin/condition
-    # FIXME: Убрать
     from control.models import Device, AlcoholMachine
-
-    # Device.delete_everything()
-    # AlcoholMachine.delete_everything()
-    # LaunchHistory.delete_everything()
 
     devices = Device.get_all_objects()
     html = "Записей в таблице \"Device\": " + str(len(devices)) + "<br>"
@@ -366,3 +392,10 @@ def condition_db(request):
     from django.utils.safestring import mark_safe
 
     return render(request, 'admin/condition.html', {'response': mark_safe(html)})
+
+
+def delete_everything():
+    from control.models import Device, AlcoholMachine
+    Device.delete_everything()
+    AlcoholMachine.delete_everything()
+    LaunchHistory.delete_everything()

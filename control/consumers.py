@@ -2,6 +2,7 @@ import json
 
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
+from channels.layers import get_channel_layer
 
 
 class StatisticConsumer(WebsocketConsumer):
@@ -57,3 +58,15 @@ class StatisticConsumer(WebsocketConsumer):
     #     pass
 
 
+def send_to_group(content, name):
+    """
+    send_to_group(content, name='statistic')
+    :param content: 
+    :param name: 
+    :return: 
+    """
+    layer = get_channel_layer()
+    async_to_sync(layer.group_send)(name, {
+        'type': 'receive_statistic',
+        'content': content
+    })

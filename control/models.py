@@ -83,6 +83,7 @@ class Device(models.Model):
 
         device.__setattr__('form_settings', None)
         device.__setattr__('current_launch', None)  # ссылка на историю текущего запуска
+        # device.__setattr__('start_settings', None)  # стартовые настройки (json), из формы запуска (клавиши старт)
 
         device.__setattr__('title', '')
         device.__setattr__('subtitle', '')
@@ -108,14 +109,14 @@ class Device(models.Model):
     def to_dict(self):
         return dict((key, self.__dict__[key]) for key in self.__dict__.keys() if not key.startswith('_'))
 
-    def starting(self, idx_settings=None):
+    def start(self, start_settings=None):  # , idx_settings=None
         # TODO: метод запуска устройства,
         # TODO: сгенерировать уникальное имя файла статистики
         # TODO: создать объект LaunchHistory(текущая дата время, девайс, запущенная программа, путь до файла статистики)
-        if idx_settings:
-            setting = self.settings[idx_settings]
-        else:
-            setting = self.settings
+        # if idx_settings:
+        #     setting = self.settings[idx_settings]
+        # else:
+        #     setting = self.settings
 
         date_str = get_datetime_str()
         abs_path = os.path.abspath(__file__)
@@ -137,9 +138,8 @@ class Device(models.Model):
             print('закрываем', path)
             file.close()
 
-        # self.current_launch = True
-
-        self.current_launch = LaunchHistory(device=self, settings=setting, statistics=path)
+        self.current_launch = LaunchHistory(device=self, settings=self.settings,
+                                            start_settings=start_settings, statistics=path)
         self.current_launch.save()
 
         return self.current_launch
@@ -218,6 +218,7 @@ class LaunchHistory(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     device = models.ForeignKey('Device', blank=True, null=True, on_delete=models.SET_NULL)
     settings = models.CharField(max_length=1024)
+    start_settings = models.CharField(max_length=1024, default='')
     statistics = models.CharField(max_length=100)  # путь до файла json со статистикой
 
     @classmethod
