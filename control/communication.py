@@ -2,6 +2,14 @@ import requests
 from requests.compat import urljoin
 
 
+def make_url(host_address: str, relative_url: str, protocol: str = 'http://'):
+    if '://' in protocol:
+        url = urljoin(protocol + host_address, relative_url)
+    else:
+        url = urljoin(protocol + '://' + host_address, relative_url)
+    return url
+
+
 def send_get(ip_address: str, relative_url: str, protocol: str = 'http://'):
     if '://' in protocol:
         url = urljoin(protocol + ip_address, relative_url)

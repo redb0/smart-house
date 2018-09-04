@@ -19,7 +19,6 @@ class StatisticConsumer(WebsocketConsumer):
 
     def disconnect(self, close_code):
         # Leave room group
-        group_name = 'statistic'
         async_to_sync(self.channel_layer.group_discard)(
             self.group_name,
             self.channel_name
@@ -36,7 +35,7 @@ class StatisticConsumer(WebsocketConsumer):
         async_to_sync(self.channel_layer.group_send)(
             self.group_name,
             {
-                'type': 'chat_message',  # Здесь имя метода который будет вызван дл потребителей которые получают сообщение
+                'type': 'chat_message',  # имя метода который будет вызван дл потребителей которые получают сообщение
                 'content': message
             }
         )
@@ -52,10 +51,6 @@ class StatisticConsumer(WebsocketConsumer):
         self.send(text_data=json.dumps({
             'content': message,
         }))
-
-    # @classmethod
-    # def receive_statistic(cls, data):
-    #     pass
 
 
 def send_to_group(content, name):

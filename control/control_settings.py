@@ -3,7 +3,7 @@ FIELD_TYPES = ['select', 'button']
 RESERVED_BUTTONS = ['button-start', 'button-pause', 'button-stop', 'button-delete']
 
 KEYS = {
-    'common': ['title', 'id', 'type'],  # множество set
+    'common': ['title', 'id', 'type'],
     'button': ['url', 'is_active'],
     'other': ['field', 'options']
 }

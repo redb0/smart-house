@@ -3,10 +3,7 @@ import json
 import os
 
 from django.db import models
-from django.utils import timezone
 
-
-# Create your models here.
 
 def ensure_dir(file_path, subdir=''):
     if file_path:
@@ -57,15 +54,6 @@ class Device(models.Model):
     device_settings = models.CharField(max_length=1024)
 
     # TODO: возможно ip адресс не будет меняться
-    # def __init__(self, name: str, device_type: str, ip_address: str, wifi, wap) -> None:  # : Net
-    #     self._name = name
-    #     self._type = device_type
-    #     self._ip_address = ip_address
-    #     self._wifi_net = wifi
-    #     self._WAP = wap  # Wireless Access Point - Беспроводная точка доступа
-    #     self._settings = []  # {'design': '', 'name': '', 'value': 1} обознаение, значение
-    #     self._return_values = []  # {'design': '', 'name': '', 'value': 1} обознаение, значение
-    #     self._form_settings = None
 
     @classmethod
     def create(cls, name, d_type, ip_address,
@@ -113,10 +101,6 @@ class Device(models.Model):
         # TODO: метод запуска устройства,
         # TODO: сгенерировать уникальное имя файла статистики
         # TODO: создать объект LaunchHistory(текущая дата время, девайс, запущенная программа, путь до файла статистики)
-        # if idx_settings:
-        #     setting = self.settings[idx_settings]
-        # else:
-        #     setting = self.settings
 
         date_str = get_datetime_str()
         abs_path = os.path.abspath(__file__)
@@ -131,7 +115,7 @@ class Device(models.Model):
         try:
             print('попытка создать файл')
             file = open(path, 'x', encoding='utf-8')  # , os.O_WRONLY | os.O_CREAT | os.O_EXCL
-        except IOError as e:
+        except IOError:
             print('не удалось открыть файл')
             print('файл существует')
         else:
@@ -258,7 +242,6 @@ class LaunchHistory(models.Model):
     def set_format(self, json_format):
         if os.stat(self.statistics).st_size == 0:
             with open(self.statistics, 'w', encoding='utf-8') as f:
-                # f.write(json_format)
                 json.dump(json_format, f, ensure_ascii=False)
 
     def get_statistic(self):
